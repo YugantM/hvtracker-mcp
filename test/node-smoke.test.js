@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, symlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { createServer, searchAgents } from "../bin/hvtracker-mcp.js";
 
 test("registers the expected read-only tools", async () => {
@@ -22,5 +27,25 @@ test("search_agents handles upstream errors", async () => {
     assert.match(result.error, /503/);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("stdio server starts when launched through an npm-style symlink", async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), "hvtracker-mcp-bin-"));
+  const linkPath = join(tempDir, "hvtracker-mcp");
+  await symlink(new URL("../bin/hvtracker-mcp.js", import.meta.url), linkPath);
+
+  const client = new Client({ name: "hvtracker-bin-test", version: "0.0.0" });
+  await client.connect(
+    new StdioClientTransport({
+      command: linkPath,
+      stderr: "pipe"
+    })
+  );
+  try {
+    const tools = await client.listTools();
+    assert.equal(tools.tools.some((tool) => tool.name === "verify_mcp_server"), true);
+  } finally {
+    await client.close();
   }
 });

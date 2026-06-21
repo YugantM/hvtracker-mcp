@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 const DEFAULT_BASE_URL = "https://hvtracker.net";
 const BASE_URL = (process.env.HVTRACKER_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
 const TIMEOUT_MS = Number(process.env.HVTRACKER_TIMEOUT_SECONDS || 20) * 1000;
@@ -202,7 +203,18 @@ export async function runStdio() {
   await server.connect(new StdioServerTransport());
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isEntrypoint() {
+  if (!process.argv[1]) {
+    return false;
+  }
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return process.argv[1] === fileURLToPath(import.meta.url);
+  }
+}
+
+if (isEntrypoint()) {
   runStdio().catch((error) => {
     console.error(error);
     process.exit(1);

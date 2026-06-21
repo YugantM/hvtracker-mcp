@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "hvtracker-mcp",
   "display_name": "HVTracker MCP",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pre-connect trust checks for AI agents and MCP servers.",
   "long_description": "HVTracker MCP lets Claude Desktop check public trust signals before installing or connecting to AI agents, frameworks, packages, and MCP servers.",
   "author": {
