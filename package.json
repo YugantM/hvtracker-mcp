@@ -1,0 +1,44 @@
+{
+  "name": "hvtracker-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for HVTracker trust checks.",
+  "license": "MIT",
+  "type": "module",
+  "mcpName": "io.github.yugantm/hvtracker-mcp",
+  "bin": {
+    "hvtracker-mcp": "./bin/hvtracker-mcp.js"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE",
+    "server.json"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "pack:check": "npm pack --dry-run"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "trust",
+    "supply-chain"
+  ],
+  "author": "YugantM",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YugantM/hvtracker-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YugantM/hvtracker-mcp/issues"
+  },
+  "homepage": "https://hvtracker.net",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.3.0"
+  }
+}

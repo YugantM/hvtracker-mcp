@@ -1,0 +1,12 @@
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+node_modules/
+*.tgz
+*.mcpb

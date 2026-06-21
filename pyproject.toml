@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hvtracker-mcp"
+version = "0.1.0"
+description = "MCP server for HVTracker trust checks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+  { name = "YugantM" }
+]
+keywords = ["mcp", "model-context-protocol", "ai-agents", "trust", "supply-chain"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+  "Topic :: Software Development :: Libraries :: Python Modules"
+]
+dependencies = [
+  "mcp>=1.27.2",
+  "requests>=2.32.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2.0",
+  "pytest>=9.0.0",
+  "ruff>=0.15.0",
+  "twine>=6.0.0"
+]
+
+[project.scripts]
+hvtracker-mcp = "hvtracker_mcp.server:main"
+
+[project.urls]
+Homepage = "https://hvtracker.net"
+Repository = "https://github.com/YugantM/hvtracker-mcp"
+Issues = "https://github.com/YugantM/hvtracker-mcp/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

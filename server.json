@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.yugantm/hvtracker-mcp",
+  "title": "HVTracker MCP",
+  "description": "Pre-connect trust checks for AI agents and MCP servers using HVTracker's public trust registry.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/YugantM/hvtracker-mcp",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://hvtracker.net/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "hvtracker-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "pypi",
+      "identifier": "hvtracker-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/yugantm/hvtracker-mcp:0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "tags": ["security", "trust", "ai-agents", "mcp", "supply-chain"]
+}
