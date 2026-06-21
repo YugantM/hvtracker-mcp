@@ -10,7 +10,7 @@ Use these fields when submitting HVTracker MCP to directories.
 - Remote endpoint: `https://hvtracker.net/mcp`
 - npm package: `hvtracker-mcp`
 - PyPI package: `hvtracker-mcp`
-- OCI image: `ghcr.io/yugantm/hvtracker-mcp`
+- OCI image: `ghcr.io/yugantm/hvtracker-mcp:v0.1.0`
 - Homepage: `https://hvtracker.net`
 - License: MIT
 - Category: Security, Developer Tools, AI Agents

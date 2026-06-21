@@ -6,7 +6,7 @@
   "type": "module",
   "mcpName": "io.github.yugantm/hvtracker-mcp",
   "bin": {
-    "hvtracker-mcp": "./bin/hvtracker-mcp.js"
+    "hvtracker-mcp": "bin/hvtracker-mcp.js"
   },
   "files": [
     "bin/",
