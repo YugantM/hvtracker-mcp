@@ -5,12 +5,12 @@ Use these fields when submitting HVTracker MCP to directories.
 ## Canonical
 
 - Name: HVTracker MCP
-- Registry name: `io.github.yugantm/hvtracker-mcp`
+- Registry name: `io.github.YugantM/hvtracker-mcp`
 - Repo: `https://github.com/YugantM/hvtracker-mcp`
 - Remote endpoint: `https://hvtracker.net/mcp`
 - npm package: `hvtracker-mcp`
 - PyPI package: `hvtracker-mcp`
-- OCI image: `ghcr.io/yugantm/hvtracker-mcp:v0.1.0`
+- OCI image: `ghcr.io/yugantm/hvtracker-mcp:v0.1.1`
 - Homepage: `https://hvtracker.net`
 - License: MIT
 - Category: Security, Developer Tools, AI Agents

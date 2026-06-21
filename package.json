@@ -1,10 +1,10 @@
 {
   "name": "hvtracker-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for HVTracker trust checks.",
   "license": "MIT",
   "type": "module",
-  "mcpName": "io.github.yugantm/hvtracker-mcp",
+  "mcpName": "io.github.YugantM/hvtracker-mcp",
   "bin": {
     "hvtracker-mcp": "bin/hvtracker-mcp.js"
   },

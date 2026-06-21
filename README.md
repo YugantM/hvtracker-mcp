@@ -18,7 +18,7 @@ The hosted remote server is:
 This repository also provides a local stdio package for clients that prefer
 package-based installation.
 
-<!-- mcp-name: io.github.yugantm/hvtracker-mcp -->
+<!-- mcp-name: io.github.YugantM/hvtracker-mcp -->
 
 ## Tools
 
@@ -81,7 +81,7 @@ PyPI, and GHCR packages for the same version are live.
 The server name is:
 
 ```text
-io.github.yugantm/hvtracker-mcp
+io.github.YugantM/hvtracker-mcp
 ```
 
 ## Claude Desktop Extension
