@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "hvtracker-mcp",
   "display_name": "HVTracker MCP",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Pre-connect trust checks for AI agents and MCP servers.",
   "long_description": "HVTracker MCP lets Claude Desktop check public trust signals before installing or connecting to AI agents, frameworks, packages, and MCP servers.",
   "author": {
@@ -21,7 +21,9 @@
     "entry_point": "bin/hvtracker-mcp.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/bin/hvtracker-mcp.js"],
+      "args": [
+        "${__dirname}/bin/hvtracker-mcp.js"
+      ],
       "env": {}
     }
   },
@@ -32,20 +34,34 @@
     },
     {
       "name": "check_agent_trust",
-      "description": "Compact trust profile for a tracked AI agent or framework."
+      "description": "Trust profile for a tracked AI agent or framework, incl. runtime capabilities and signed-credential URL."
     },
     {
       "name": "search_agents",
       "description": "Search the HVTracker registry by name, repo, description, or category."
+    },
+    {
+      "name": "compare_agents",
+      "description": "Compare two tracked AI agents side by side with an evidence-based verdict."
     }
   ],
-  "keywords": ["mcp", "trust", "ai-agents", "security", "supply-chain"],
+  "keywords": [
+    "mcp",
+    "trust",
+    "ai-agents",
+    "security",
+    "supply-chain"
+  ],
   "license": "MIT",
   "privacy_policies": [
     "https://github.com/YugantM/hvtracker-mcp/blob/main/PRIVACY.md"
   ],
   "compatibility": {
-    "platforms": ["darwin", "win32", "linux"],
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
     "runtimes": {
       "node": ">=20.0.0"
     }

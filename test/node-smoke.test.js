@@ -13,7 +13,7 @@ test("registers the expected read-only tools", async () => {
   const tools = server._registeredTools;
   assert.deepEqual(
     Object.keys(tools).sort(),
-    ["check_agent_trust", "search_agents", "verify_mcp_server"]
+    ["check_agent_trust", "compare_agents", "search_agents", "verify_mcp_server"]
   );
   assert.equal(tools.verify_mcp_server.annotations.readOnlyHint, true);
 });

@@ -7,7 +7,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const VERSION = "0.1.2";
+const VERSION = "0.2.0";
 const DEFAULT_BASE_URL = "https://hvtracker.net";
 const BASE_URL = (process.env.HVTRACKER_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
 const TIMEOUT_MS = Number(process.env.HVTRACKER_TIMEOUT_SECONDS || 20) * 1000;
@@ -92,7 +92,7 @@ export async function checkAgentTrust(nameOrRepo) {
   }
 
   const slug = verdict.slug;
-  return {
+  const result = {
     query: nameOrRepo,
     tracked: true,
     trusted: verdict.trusted,
@@ -104,8 +104,68 @@ export async function checkAgentTrust(nameOrRepo) {
     mcp_server_support: verdict.mcp_server_support,
     tool_permissions: verdict.tool_permissions || [],
     profile_url: slug ? `${BASE_URL}/agents/${slug}/` : null,
+    credential_url: slug ? `${BASE_URL}/data/agents/${slug}.json` : null,
     reasons: verdict.reasons || []
   };
+  if (slug) {
+    try {
+      const agent = await apiGet(`/data/agents/${slug}.json`);
+      const ext = agent.external_service_dependencies || {};
+      const tooling = agent.tool_plugin_surface || {};
+      const drift = agent.package_provenance_drift || {};
+      result.coverage_grade = agent.coverage_grade ?? null;
+      result.capabilities = {
+        mcp_status: (agent.mcp_server_support || {}).status || "none",
+        provider_count: (ext.providers || []).length,
+        requires_api_keys: Boolean(ext.requires_api_keys),
+        plugin_system: tooling.plugin_system || "none",
+        drift_status: drift.status || "not_applicable"
+      };
+    } catch {
+      // enrichment is best-effort; the verdict stands alone
+    }
+  }
+  return result;
+}
+
+export async function compareAgents(a, b) {
+  const [ra, rb] = [await checkAgentTrust(a), await checkAgentTrust(b)];
+  if (!ra.tracked || !rb.tracked) {
+    const missing = [[a, ra], [b, rb]].filter(([, r]) => !r.tracked).map(([q]) => q);
+    return {
+      a: ra,
+      b: rb,
+      verdict: `No verdict: ${missing.join(", ")} not in the registry — no independent trust evidence to compare.`,
+      compare_url: null
+    };
+  }
+  const sa = ra.trust_score || 0;
+  const sb = rb.trust_score || 0;
+  let verdict;
+  if (sa === sb) {
+    verdict = `${ra.repo} and ${rb.repo} tie at HVTrust ${sa} (grades ${ra.evidence_grade}/${rb.evidence_grade}).`;
+  } else {
+    const [hi, lo] = sa > sb ? [ra, rb] : [rb, ra];
+    verdict = `${hi.repo} scores higher on verifiable trust: HVTrust ${hi.trust_score} (grade ${hi.evidence_grade}) vs ${lo.repo} at ${lo.trust_score} (grade ${lo.evidence_grade}).`;
+  }
+  let compareUrl = null;
+  if (ra.slug && rb.slug) {
+    const [first, second] = [ra.slug, rb.slug].sort();
+    const candidate = `${BASE_URL}/compare/${first}-vs-${second}/`;
+    try {
+      const probe = await fetch(candidate, {
+        method: "HEAD",
+        headers: { "user-agent": `hvtracker-mcp/${VERSION}` },
+        signal: AbortSignal.timeout(TIMEOUT_MS)
+      });
+      if (probe.ok) {
+        compareUrl = candidate;
+      }
+    } catch {
+      // no published compare page (or unreachable) — omit the link
+    }
+  }
+  return { a: ra, b: rb, verdict, compare_url: compareUrl };
 }
 
 export async function searchAgents(query = "", category = "", limit = 10) {
@@ -177,6 +237,20 @@ export function createServer() {
       annotations: READ_ONLY
     },
     async ({ name_or_repo }) => asToolResult(await checkAgentTrust(name_or_repo))
+  );
+
+  server.registerTool(
+    "compare_agents",
+    {
+      title: "Compare Agents",
+      description: "Compare two tracked AI agents side by side: trust scores, grades, runtime capabilities, and an evidence-based verdict.",
+      inputSchema: {
+        a: z.string().describe("First agent — name, slug, GitHub repo/URL, or package."),
+        b: z.string().describe("Second agent — name, slug, GitHub repo/URL, or package.")
+      },
+      annotations: READ_ONLY
+    },
+    async ({ a, b }) => asToolResult(await compareAgents(a, b))
   );
 
   server.registerTool(

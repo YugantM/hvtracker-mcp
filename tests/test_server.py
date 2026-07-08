@@ -69,6 +69,35 @@ def test_search_agents_filters_and_sorts(monkeypatch):
 
 def test_tools_have_read_only_annotations():
     tools = {tool.name: tool for tool in asyncio.run(server.mcp.list_tools())}
-    assert set(tools) == {"verify_mcp_server", "check_agent_trust", "search_agents"}
+    assert set(tools) == {"verify_mcp_server", "check_agent_trust", "search_agents", "compare_agents"}
     assert tools["verify_mcp_server"].annotations.readOnlyHint is True
 
+
+
+def test_compare_agents_verdict(monkeypatch):
+    profiles = {
+        "LangGraph": {"tracked": True, "repo": "langchain-ai/langgraph",
+                      "slug": "langgraph", "trust_score": 92.8, "evidence_grade": "A"},
+        "AIPass": {"tracked": True, "repo": "AIOSAI/AIPass",
+                   "slug": "aipass", "trust_score": 70.0, "evidence_grade": "C"},
+    }
+    monkeypatch.setattr(server, "check_agent_trust", lambda q: dict(profiles[q]))
+
+    class _Probe:
+        status_code = 404
+
+    monkeypatch.setattr(server.requests, "head", lambda *a, **k: _Probe())
+    result = server.compare_agents("LangGraph", "AIPass")
+    assert "langchain-ai/langgraph scores higher" in result["verdict"]
+    assert result["compare_url"] is None
+
+
+def test_compare_agents_untracked_is_graceful(monkeypatch):
+    monkeypatch.setattr(
+        server, "check_agent_trust",
+        lambda q: {"tracked": q == "LangGraph", "repo": q, "slug": q.lower(),
+                   "trust_score": 90.0, "evidence_grade": "A"},
+    )
+    result = server.compare_agents("LangGraph", "ghost-agent")
+    assert result["verdict"].startswith("No verdict")
+    assert result["compare_url"] is None

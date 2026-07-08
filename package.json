@@ -1,6 +1,6 @@
 {
   "name": "hvtracker-mcp",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "MCP server for HVTracker trust checks.",
   "license": "MIT",
   "type": "module",

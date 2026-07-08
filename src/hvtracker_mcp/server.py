@@ -79,7 +79,9 @@ def verify_mcp_server(server: str) -> dict[str, Any]:
 
 @mcp.tool(title="Check Agent Trust", annotations=READ_ONLY)
 def check_agent_trust(name_or_repo: str) -> dict[str, Any]:
-    """Get the HVTracker trust profile for a tracked AI agent or framework."""
+    """Get the HVTracker trust profile for a tracked AI agent or framework,
+    including its runtime capability surface and the URL of its Ed25519-signed
+    trust credential (verifiable offline)."""
     verdict = verify_mcp_server(name_or_repo)
     if not verdict.get("tracked"):
         return {
@@ -91,7 +93,7 @@ def check_agent_trust(name_or_repo: str) -> dict[str, Any]:
             "verdict": verdict,
         }
     slug = verdict.get("slug")
-    return {
+    result = {
         "query": name_or_repo,
         "tracked": True,
         "trusted": verdict.get("trusted"),
@@ -103,8 +105,73 @@ def check_agent_trust(name_or_repo: str) -> dict[str, Any]:
         "mcp_server_support": verdict.get("mcp_server_support"),
         "tool_permissions": verdict.get("tool_permissions") or [],
         "profile_url": f"{BASE_URL}/agents/{slug}/" if slug else None,
+        "credential_url": f"{BASE_URL}/data/agents/{slug}.json" if slug else None,
         "reasons": verdict.get("reasons") or [],
     }
+    if slug:
+        try:
+            agent = _api_get(f"/data/agents/{slug}.json")
+            ext = agent.get("external_service_dependencies") or {}
+            tooling = agent.get("tool_plugin_surface") or {}
+            drift = agent.get("package_provenance_drift") or {}
+            result["coverage_grade"] = agent.get("coverage_grade")
+            result["capabilities"] = {
+                "mcp_status": (agent.get("mcp_server_support") or {}).get("status") or "none",
+                "provider_count": len(ext.get("providers") or []),
+                "requires_api_keys": bool(ext.get("requires_api_keys")),
+                "plugin_system": tooling.get("plugin_system") or "none",
+                "drift_status": drift.get("status") or "not_applicable",
+            }
+        except Exception:  # enrichment is best-effort; the verdict stands alone
+            pass
+    return result
+
+
+@mcp.tool(title="Compare Agents", annotations=READ_ONLY)
+def compare_agents(a: str, b: str) -> dict[str, Any]:
+    """Compare two tracked AI agents side by side: both trust profiles, an
+    evidence-based one-line verdict, and the HVTracker compare-page URL when
+    one is published."""
+    ra, rb = check_agent_trust(a), check_agent_trust(b)
+    if not ra.get("tracked") or not rb.get("tracked"):
+        missing = [q for q, r in ((a, ra), (b, rb)) if not r.get("tracked")]
+        verdict = (
+            f"No verdict: {', '.join(missing)} not in the registry — "
+            "no independent trust evidence to compare."
+        )
+        return {"a": ra, "b": rb, "verdict": verdict, "compare_url": None}
+
+    sa, sb = ra.get("trust_score") or 0, rb.get("trust_score") or 0
+    na, nb = ra.get("repo") or a, rb.get("repo") or b
+    if sa == sb:
+        verdict = (
+            f"{na} and {nb} tie at HVTrust {sa} "
+            f"(grades {ra.get('evidence_grade')}/{rb.get('evidence_grade')})."
+        )
+    else:
+        hi, lo = (ra, rb) if sa > sb else (rb, ra)
+        verdict = (
+            f"{hi.get('repo')} scores higher on verifiable trust: HVTrust "
+            f"{hi.get('trust_score')} (grade {hi.get('evidence_grade')}) vs "
+            f"{lo.get('repo')} at {lo.get('trust_score')} (grade {lo.get('evidence_grade')})."
+        )
+
+    compare_url = None
+    if ra.get("slug") and rb.get("slug"):
+        first, second = sorted([ra["slug"], rb["slug"]])
+        candidate = f"{BASE_URL}/compare/{first}-vs-{second}/"
+        try:
+            probe = requests.head(
+                candidate,
+                timeout=TIMEOUT_SECONDS,
+                headers={"User-Agent": f"hvtracker-mcp/{__version__}"},
+                allow_redirects=True,
+            )
+            if probe.status_code == 200:
+                compare_url = candidate
+        except Exception:
+            pass
+    return {"a": ra, "b": rb, "verdict": verdict, "compare_url": compare_url}
 
 
 @mcp.tool(title="Search Agents", annotations=READ_ONLY)

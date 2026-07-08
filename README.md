@@ -23,7 +23,8 @@ package-based installation.
 ## Tools
 
 - `verify_mcp_server`: pre-connect trust verdict for an MCP server, package, GitHub repo, or agent name.
-- `check_agent_trust`: compact trust profile for a tracked AI agent or framework.
+- `check_agent_trust`: trust profile for a tracked AI agent or framework — incl. runtime capabilities (MCP status, providers, plugin surface, provenance drift) and the URL of its Ed25519-signed trust credential.
+- `compare_agents`: two agents side by side with an evidence-based verdict and the published compare-page link.
 - `search_agents`: search the HVTracker registry by name, repo, description, or category.
 
 ## Local Install

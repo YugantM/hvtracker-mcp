@@ -3,7 +3,7 @@
   "name": "io.github.YugantM/hvtracker-mcp",
   "title": "HVTracker MCP",
   "description": "Pre-connect trust checks for AI agents and MCP servers using HVTracker's public trust registry.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "repository": {
     "url": "https://github.com/YugantM/hvtracker-mcp",
     "source": "github"
@@ -18,7 +18,7 @@
     {
       "registryType": "npm",
       "identifier": "hvtracker-mcp",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       }
@@ -26,18 +26,25 @@
     {
       "registryType": "pypi",
       "identifier": "hvtracker-mcp",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       }
     },
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/yugantm/hvtracker-mcp:v0.1.2",
+      "identifier": "ghcr.io/yugantm/hvtracker-mcp:v0.2.0",
       "transport": {
         "type": "stdio"
-      }
+      },
+      "version": "0.2.0"
     }
   ],
-  "tags": ["security", "trust", "ai-agents", "mcp", "supply-chain"]
+  "tags": [
+    "security",
+    "trust",
+    "ai-agents",
+    "mcp",
+    "supply-chain"
+  ]
 }
