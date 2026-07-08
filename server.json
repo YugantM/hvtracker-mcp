@@ -36,8 +36,7 @@
       "identifier": "ghcr.io/yugantm/hvtracker-mcp:v0.2.0",
       "transport": {
         "type": "stdio"
-      },
-      "version": "0.2.0"
+      }
     }
   ],
   "tags": [
