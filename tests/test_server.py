@@ -1,6 +1,13 @@
 import asyncio
 
+import pytest
+
 from hvtracker_mcp import server
+
+
+@pytest.fixture(autouse=True)
+def _fresh_board_cache():
+    server._board_cache.update({"at": 0.0, "data": None})
 
 
 def test_verify_mcp_server_delegates_to_api(monkeypatch):
@@ -65,6 +72,38 @@ def test_search_agents_filters_and_sorts(monkeypatch):
     result = server.search_agents(query="example", category="Coding Agents")
     assert result["count"] == 2
     assert [row["name"] for row in result["results"]] == ["Higher", "Lower"]
+
+
+def test_search_agents_caches_the_board(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_get(path):
+        calls["n"] += 1
+        return {"agents": [{"name": "A", "repo": "x/a", "slug": "a",
+                            "trust_score": 50, "category": "Coding Agents"}]}
+
+    monkeypatch.setattr(server, "_api_get", fake_get)
+    server.search_agents(query="a")
+    server.search_agents(query="a")
+    assert calls["n"] == 1
+
+    server._board_cache["at"] -= server.BOARD_TTL_SECONDS + 1
+    server.search_agents(query="a")
+    assert calls["n"] == 2
+
+
+def test_search_agents_does_not_cache_failures(monkeypatch):
+    state = {"fail": True}
+
+    def fake_get(path):
+        if state["fail"]:
+            raise RuntimeError("upstream down")
+        return {"agents": []}
+
+    monkeypatch.setattr(server, "_api_get", fake_get)
+    assert "error" in server.search_agents(query="a")
+    state["fail"] = False
+    assert "error" not in server.search_agents(query="a")
 
 
 def test_tools_have_read_only_annotations():

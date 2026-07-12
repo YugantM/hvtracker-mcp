@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from typing import Any
 
 import requests
@@ -20,6 +21,9 @@ from . import __version__
 DEFAULT_BASE_URL = "https://hvtracker.net"
 BASE_URL = os.environ.get("HVTRACKER_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
 TIMEOUT_SECONDS = float(os.environ.get("HVTRACKER_TIMEOUT_SECONDS", "20"))
+# The full leaderboard is ~1MB and the API serves it with Cache-Control
+# max-age=900; re-pulling it per search_agents call is wasted origin load.
+BOARD_TTL_SECONDS = float(os.environ.get("HVTRACKER_BOARD_TTL_SECONDS", "900"))
 
 mcp = FastMCP("hvtracker", instructions="Check trust signals for AI agents and MCP servers.")
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
@@ -38,6 +42,21 @@ def _api_get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError(f"Unexpected response shape from {url}")
     return payload
+
+
+_board_cache: dict[str, Any] = {"at": 0.0, "data": None}
+
+
+def _get_board() -> dict[str, Any]:
+    """Return /api/v1/agents, cached for BOARD_TTL_SECONDS. Failures are not
+    cached — the next call retries."""
+    now = time.monotonic()
+    if _board_cache["data"] is not None and now - _board_cache["at"] < BOARD_TTL_SECONDS:
+        return _board_cache["data"]
+    data = _api_get("/api/v1/agents")
+    _board_cache["data"] = data
+    _board_cache["at"] = now
+    return data
 
 
 def _agent_profile(agent: dict[str, Any]) -> dict[str, Any]:
@@ -178,7 +197,7 @@ def compare_agents(a: str, b: str) -> dict[str, Any]:
 def search_agents(query: str = "", category: str = "", limit: int = 10) -> dict[str, Any]:
     """Search tracked AI agents and frameworks by name, repo, or description."""
     try:
-        data = _api_get("/api/v1/agents")
+        data = _get_board()
     except Exception as exc:
         return {"count": 0, "results": [], "error": str(exc)}
 

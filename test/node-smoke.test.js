@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { createServer, searchAgents } from "../bin/hvtracker-mcp.js";
+import { createServer, resetBoardCache, searchAgents } from "../bin/hvtracker-mcp.js";
 
 test("registers the expected read-only tools", async () => {
   const server = createServer();
@@ -19,6 +19,7 @@ test("registers the expected read-only tools", async () => {
 });
 
 test("search_agents handles upstream errors", async () => {
+  resetBoardCache();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => ({ ok: false, status: 503 });
   try {
@@ -27,6 +28,38 @@ test("search_agents handles upstream errors", async () => {
     assert.match(result.error, /503/);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("search_agents caches the board and retries after failures", async () => {
+  resetBoardCache();
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return {
+      ok: true,
+      json: async () => ({
+        agents: [{ name: "A", repo: "x/a", slug: "a", trust_score: 50, category: "Coding Agents" }]
+      })
+    };
+  };
+  try {
+    await searchAgents("a");
+    await searchAgents("a");
+    assert.equal(calls, 1);
+
+    // A failed fetch must not be cached: the next call retries.
+    resetBoardCache();
+    globalThis.fetch = async () => ({ ok: false, status: 503 });
+    const failed = await searchAgents("a");
+    assert.match(failed.error, /503/);
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ agents: [] }) });
+    const recovered = await searchAgents("a");
+    assert.equal(recovered.error, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+    resetBoardCache();
   }
 });
 

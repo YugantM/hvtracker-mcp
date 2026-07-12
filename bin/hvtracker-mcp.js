@@ -7,10 +7,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 const DEFAULT_BASE_URL = "https://hvtracker.net";
 const BASE_URL = (process.env.HVTRACKER_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
 const TIMEOUT_MS = Number(process.env.HVTRACKER_TIMEOUT_SECONDS || 20) * 1000;
+// The full leaderboard is ~1MB and the API serves it with Cache-Control
+// max-age=900; re-pulling it per search_agents call is wasted origin load.
+const BOARD_TTL_MS = Number(process.env.HVTRACKER_BOARD_TTL_SECONDS || 900) * 1000;
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -38,6 +41,25 @@ export async function apiGet(path, params = {}) {
     throw new Error(`Unexpected response shape from ${url.toString()}`);
   }
   return payload;
+}
+
+const boardCache = { at: 0, data: null };
+
+export function resetBoardCache() {
+  boardCache.at = 0;
+  boardCache.data = null;
+}
+
+// Returns /api/v1/agents, cached for BOARD_TTL_MS. Failures are not cached —
+// the next call retries.
+async function getBoard() {
+  if (boardCache.data !== null && Date.now() - boardCache.at < BOARD_TTL_MS) {
+    return boardCache.data;
+  }
+  const data = await apiGet("/api/v1/agents");
+  boardCache.data = data;
+  boardCache.at = Date.now();
+  return data;
 }
 
 function asToolResult(value) {
@@ -170,7 +192,7 @@ export async function compareAgents(a, b) {
 
 export async function searchAgents(query = "", category = "", limit = 10) {
   try {
-    const data = await apiGet("/api/v1/agents");
+    const data = await getBoard();
     const ql = String(query || "").trim().toLowerCase();
     const cl = String(category || "").trim().toLowerCase();
     const matches = [];
