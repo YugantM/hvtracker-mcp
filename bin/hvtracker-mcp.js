@@ -7,7 +7,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const VERSION = "0.2.1";
+const VERSION = "0.3.0";
 const DEFAULT_BASE_URL = "https://hvtracker.net";
 const BASE_URL = (process.env.HVTRACKER_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
 const TIMEOUT_MS = Number(process.env.HVTRACKER_TIMEOUT_SECONDS || 20) * 1000;
@@ -31,6 +31,24 @@ export async function apiGet(path, params = {}) {
 
   const response = await fetch(url, {
     headers: { "user-agent": `hvtracker-mcp/${VERSION}` },
+    signal: AbortSignal.timeout(TIMEOUT_MS)
+  });
+  if (!response.ok) {
+    throw new Error(`HVTracker API returned ${response.status} for ${url.toString()}`);
+  }
+  const payload = await response.json();
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error(`Unexpected response shape from ${url.toString()}`);
+  }
+  return payload;
+}
+
+export async function apiPost(path, body) {
+  const url = new URL(path, BASE_URL);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "user-agent": `hvtracker-mcp/${VERSION}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(TIMEOUT_MS)
   });
   if (!response.ok) {
@@ -228,6 +246,64 @@ export async function searchAgents(query = "", category = "", limit = 10) {
   }
 }
 
+export async function scanStack(input) {
+  try {
+    return await apiPost("/api/v1/scan", { input: String(input || "").slice(0, 20000) });
+  } catch (error) {
+    return { summary: { total: 0 }, results: [], error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function listCategories() {
+  try {
+    const data = await getBoard();
+    const counts = new Map();
+    for (const agent of data.agents || []) {
+      const cat = agent.category;
+      if (cat) counts.set(cat, (counts.get(cat) || 0) + 1);
+    }
+    const categories = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([category, count]) => ({ category, count, leaderboard_hint: `get_leaderboard(category="${category}")` }));
+    return { count: categories.length, categories };
+  } catch (error) {
+    return { count: 0, categories: [], error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function getLeaderboard(category = "", limit = 10) {
+  try {
+    const data = await getBoard();
+    const cl = String(category || "").trim().toLowerCase();
+    const rows = (data.agents || [])
+      .filter((agent) => !cl || String(agent.category || "").toLowerCase() === cl)
+      .map(agentProfile);
+    rows.sort((a, b) => {
+      if (a.trust_score == null && b.trust_score != null) return 1;
+      if (a.trust_score != null && b.trust_score == null) return -1;
+      return (b.trust_score || 0) - (a.trust_score || 0);
+    });
+    const safeLimit = Math.max(1, Math.min(Number.parseInt(limit, 10) || 10, 50));
+    return { category: category || null, count: rows.length, results: rows.slice(0, safeLimit) };
+  } catch (error) {
+    return { category: category || null, count: 0, results: [], error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export async function getAgentHistory(nameOrRepo) {
+  const verdict = await verifyMcpServer(nameOrRepo);
+  const slug = verdict.slug;
+  if (!verdict.tracked || !slug) {
+    return { tracked: false, query: nameOrRepo, message: "Not in the HVTracker registry; no history to show." };
+  }
+  try {
+    const hist = await apiGet(`/api/v1/agents/${slug}/history`);
+    return { ...hist, tracked: true };
+  } catch (error) {
+    return { tracked: true, slug, history: [], error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 export function createServer() {
   const server = new McpServer({
     name: "hvtracker",
@@ -289,6 +365,57 @@ export function createServer() {
     },
     async ({ query = "", category = "", limit = 10 }) =>
       asToolResult(await searchAgents(query, category, limit))
+  );
+
+  server.registerTool(
+    "scan_stack",
+    {
+      title: "Scan Stack",
+      description: "Bulk pre-connect trust check for a whole dependency set — paste a requirements.txt, package.json, MCP client config, or list and get a verdict per item plus a stack summary.",
+      inputSchema: {
+        input: z.string().describe("A requirements.txt, package.json, MCP client config, or newline/comma list.")
+      },
+      annotations: READ_ONLY
+    },
+    async ({ input }) => asToolResult(await scanStack(input))
+  );
+
+  server.registerTool(
+    "list_categories",
+    {
+      title: "List Categories",
+      description: "List the HVTracker categories with agent counts, so you can then pull a category's leaderboard.",
+      inputSchema: {},
+      annotations: READ_ONLY
+    },
+    async () => asToolResult(await listCategories())
+  );
+
+  server.registerTool(
+    "get_leaderboard",
+    {
+      title: "Get Leaderboard",
+      description: "Top tracked AI agents and MCP servers ranked by HVTrust score, optionally filtered to one category.",
+      inputSchema: {
+        category: z.string().optional().default(""),
+        limit: z.number().int().min(1).max(50).optional().default(10)
+      },
+      annotations: READ_ONLY
+    },
+    async ({ category = "", limit = 10 }) => asToolResult(await getLeaderboard(category, limit))
+  );
+
+  server.registerTool(
+    "get_agent_history",
+    {
+      title: "Get Agent History",
+      description: "90-day trust-score, grade, and rank history for one tracked agent — is it improving or declining?",
+      inputSchema: {
+        name_or_repo: z.string().describe("Agent name, slug, GitHub repo, package, or MCP URL.")
+      },
+      annotations: READ_ONLY
+    },
+    async ({ name_or_repo }) => asToolResult(await getAgentHistory(name_or_repo))
   );
 
   return server;

@@ -59,6 +59,21 @@ def _get_board() -> dict[str, Any]:
     return data
 
 
+def _api_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
+    url = f"{BASE_URL}{path}"
+    response = requests.post(
+        url,
+        json=body,
+        timeout=TIMEOUT_SECONDS,
+        headers={"User-Agent": f"hvtracker-mcp/{__version__}"},
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Unexpected response shape from {url}")
+    return payload
+
+
 def _agent_profile(agent: dict[str, Any]) -> dict[str, Any]:
     slug = agent.get("slug")
     return {
@@ -217,6 +232,73 @@ def search_agents(query: str = "", category: str = "", limit: int = 10) -> dict[
     matches.sort(key=lambda row: (row["trust_score"] is None, -(row["trust_score"] or 0)))
     limit = max(1, min(int(limit or 10), 50))
     return {"count": len(matches), "results": matches[:limit]}
+
+
+@mcp.tool(title="Scan Stack", annotations=READ_ONLY)
+def scan_stack(input: str) -> dict[str, Any]:
+    """Bulk pre-connect trust check for a whole dependency set. Paste a
+    requirements.txt, package.json, MCP client config, or a newline/comma list;
+    each item is returned with a trust verdict plus a stack summary."""
+    try:
+        return _api_post("/api/v1/scan", {"input": (input or "")[:20000]})
+    except Exception as exc:
+        return {"summary": {"total": 0}, "results": [], "error": str(exc)}
+
+
+@mcp.tool(title="List Categories", annotations=READ_ONLY)
+def list_categories() -> dict[str, Any]:
+    """List HVTracker categories with agent counts (most-populated first), so you
+    can then pull a category's leaderboard."""
+    try:
+        data = _get_board()
+    except Exception as exc:
+        return {"count": 0, "categories": [], "error": str(exc)}
+    counts: dict[str, int] = {}
+    for agent in data.get("agents", []):
+        cat = agent.get("category")
+        if cat:
+            counts[cat] = counts.get(cat, 0) + 1
+    cats = [
+        {"category": c, "count": n, "leaderboard_hint": f'get_leaderboard(category="{c}")'}
+        for c, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
+    return {"count": len(cats), "categories": cats}
+
+
+@mcp.tool(title="Get Leaderboard", annotations=READ_ONLY)
+def get_leaderboard(category: str = "", limit: int = 10) -> dict[str, Any]:
+    """Top tracked AI agents and MCP servers by HVTrust score, optionally scoped
+    to one category (exact name from list_categories)."""
+    try:
+        data = _get_board()
+    except Exception as exc:
+        return {"category": category or None, "count": 0, "results": [], "error": str(exc)}
+    cl = (category or "").strip().lower()
+    rows = [
+        _agent_profile(agent)
+        for agent in data.get("agents", [])
+        if not cl or (agent.get("category") or "").lower() == cl
+    ]
+    rows.sort(key=lambda row: (row["trust_score"] is None, -(row["trust_score"] or 0)))
+    limit = max(1, min(int(limit or 10), 50))
+    return {"category": category or None, "count": len(rows), "results": rows[:limit]}
+
+
+@mcp.tool(title="Get Agent History", annotations=READ_ONLY)
+def get_agent_history(name_or_repo: str) -> dict[str, Any]:
+    """90-day trust-score, grade, and rank history for one tracked agent — is it
+    improving or declining? Accepts the same identifiers as check_agent_trust."""
+    verdict = verify_mcp_server(name_or_repo)
+    slug = verdict.get("slug")
+    if not verdict.get("tracked") or not slug:
+        return {"tracked": False, "query": name_or_repo,
+                "message": "Not in the HVTracker registry; no history to show."}
+    try:
+        hist = _api_get(f"/api/v1/agents/{slug}/history")
+    except Exception as exc:
+        return {"tracked": True, "slug": slug, "history": [], "error": str(exc)}
+    hist["tracked"] = True
+    return hist
 
 
 def main(argv: list[str] | None = None) -> None:

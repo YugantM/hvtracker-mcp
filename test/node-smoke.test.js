@@ -13,9 +13,14 @@ test("registers the expected read-only tools", async () => {
   const tools = server._registeredTools;
   assert.deepEqual(
     Object.keys(tools).sort(),
-    ["check_agent_trust", "compare_agents", "search_agents", "verify_mcp_server"]
+    [
+      "check_agent_trust", "compare_agents", "get_agent_history", "get_leaderboard",
+      "list_categories", "scan_stack", "search_agents", "verify_mcp_server"
+    ]
   );
-  assert.equal(tools.verify_mcp_server.annotations.readOnlyHint, true);
+  for (const tool of Object.values(tools)) {
+    assert.equal(tool.annotations.readOnlyHint, true);
+  }
 });
 
 test("search_agents handles upstream errors", async () => {

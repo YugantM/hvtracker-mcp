@@ -108,8 +108,65 @@ def test_search_agents_does_not_cache_failures(monkeypatch):
 
 def test_tools_have_read_only_annotations():
     tools = {tool.name: tool for tool in asyncio.run(server.mcp.list_tools())}
-    assert set(tools) == {"verify_mcp_server", "check_agent_trust", "search_agents", "compare_agents"}
-    assert tools["verify_mcp_server"].annotations.readOnlyHint is True
+    assert set(tools) == {
+        "verify_mcp_server", "check_agent_trust", "search_agents", "compare_agents",
+        "scan_stack", "list_categories", "get_leaderboard", "get_agent_history",
+    }
+    for tool in tools.values():
+        assert tool.annotations.readOnlyHint is True
+
+
+def test_scan_stack_delegates_to_scan_api(monkeypatch):
+    seen = {}
+
+    def fake_post(path, body):
+        seen["path"], seen["body"] = path, body
+        return {"summary": {"total": 2, "tracked": 1}, "results": []}
+
+    monkeypatch.setattr(server, "_api_post", fake_post)
+    out = server.scan_stack("langgraph\nunknown-pkg")
+    assert seen["path"] == "/api/v1/scan"
+    assert seen["body"]["input"].startswith("langgraph")
+    assert out["summary"]["total"] == 2
+
+
+def test_list_categories_counts(monkeypatch):
+    monkeypatch.setattr(server, "_api_get", lambda path: {"agents": [
+        {"category": "Coding Agents"}, {"category": "Coding Agents"},
+        {"category": "MCP Servers"},
+    ]})
+    out = server.list_categories()
+    cats = {c["category"]: c["count"] for c in out["categories"]}
+    assert cats == {"Coding Agents": 2, "MCP Servers": 1}
+    assert out["categories"][0]["category"] == "Coding Agents"  # most first
+
+
+def test_get_leaderboard_filters_and_sorts(monkeypatch):
+    monkeypatch.setattr(server, "_api_get", lambda path: {"agents": [
+        {"name": "Lo", "repo": "x/lo", "slug": "lo", "trust_score": 40, "category": "Coding Agents"},
+        {"name": "Hi", "repo": "x/hi", "slug": "hi", "trust_score": 90, "category": "Coding Agents"},
+        {"name": "Other", "repo": "x/o", "slug": "o", "trust_score": 99, "category": "MCP Servers"},
+    ]})
+    out = server.get_leaderboard(category="Coding Agents")
+    assert out["category"] == "Coding Agents"
+    assert [r["name"] for r in out["results"]] == ["Hi", "Lo"]
+
+
+def test_get_agent_history_delegates(monkeypatch):
+    monkeypatch.setattr(server, "verify_mcp_server",
+                        lambda q: {"tracked": True, "slug": "langgraph"})
+    monkeypatch.setattr(server, "_api_get",
+                        lambda path: {"count": 3, "history": [{"date": "2026-07-13"}]})
+    out = server.get_agent_history("LangGraph")
+    assert out["tracked"] is True
+    assert out["count"] == 3
+
+
+def test_get_agent_history_untracked_is_graceful(monkeypatch):
+    monkeypatch.setattr(server, "verify_mcp_server", lambda q: {"tracked": False})
+    out = server.get_agent_history("ghost")
+    assert out["tracked"] is False
+    assert "message" in out
 
 
 
