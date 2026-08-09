@@ -1,5 +1,8 @@
 # HVTracker MCP
 
+[![Smithery](https://img.shields.io/badge/Smithery-hvtracker--mcp-blue)](https://smithery.ai/servers/hvtracker/hvtracker-mcp)
+[![npm](https://img.shields.io/npm/v/hvtracker-mcp)](https://www.npmjs.com/package/hvtracker-mcp) [![PyPI](https://img.shields.io/pypi/v/hvtracker-mcp)](https://pypi.org/project/hvtracker-mcp/) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 MCP server for checking supply-chain trust before connecting to AI agents,
 frameworks, or MCP servers.
 
@@ -26,6 +29,10 @@ package-based installation.
 - `check_agent_trust`: trust profile for a tracked AI agent or framework — incl. runtime capabilities (MCP status, providers, plugin surface, provenance drift) and the URL of its Ed25519-signed trust credential.
 - `compare_agents`: two agents side by side with an evidence-based verdict and the published compare-page link.
 - `search_agents`: search the HVTracker registry by name, repo, description, or category.
+- `scan_stack`: bulk pre-connect trust check for a whole dependency set — paste a requirements.txt, package.json, MCP client config, or a plain list and get a trust verdict per item plus a stack summary.
+- `list_categories`: list the HVTracker categories with agent counts, so you can then pull a category's leaderboard.
+- `get_leaderboard`: top tracked AI agents and MCP servers ranked by HVTrust score, optionally filtered to one category.
+- `get_agent_history`: 90-day trust-score, grade, and rank history for one tracked agent — is it improving or declining?
 
 ## Local Install
 
