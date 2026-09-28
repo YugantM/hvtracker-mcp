@@ -13,7 +13,7 @@ import time
 from typing import Any
 
 import requests
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
 from . import __version__
@@ -25,7 +25,11 @@ TIMEOUT_SECONDS = float(os.environ.get("HVTRACKER_TIMEOUT_SECONDS", "20"))
 # max-age=900; re-pulling it per search_agents call is wasted origin load.
 BOARD_TTL_SECONDS = float(os.environ.get("HVTRACKER_BOARD_TTL_SECONDS", "900"))
 
-mcp = FastMCP("hvtracker", instructions="Check trust signals for AI agents and MCP servers.")
+mcp = MCPServer(
+    "hvtracker",
+    instructions="Check trust signals for AI agents and MCP servers.",
+    version=__version__,
+)
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 
 

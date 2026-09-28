@@ -113,7 +113,7 @@ def test_tools_have_read_only_annotations():
         "scan_stack", "list_categories", "get_leaderboard", "get_agent_history",
     }
     for tool in tools.values():
-        assert tool.annotations.readOnlyHint is True
+        assert tool.annotations.read_only_hint is True
 
 
 def test_scan_stack_delegates_to_scan_api(monkeypatch):
@@ -197,3 +197,21 @@ def test_compare_agents_untracked_is_graceful(monkeypatch):
     result = server.compare_agents("LangGraph", "ghost-agent")
     assert result["verdict"].startswith("No verdict")
     assert result["compare_url"] is None
+
+
+# The published entry point, end to end over stdio, in both protocol eras.
+# 0.3.0 declared mcp>=1.27.2 and crashed on import once mcp 2.0 shipped; this
+# runs the real `python -m hvtracker_mcp` process with the SDK's own client.
+@pytest.mark.parametrize("mode", ["2026-07-28", "legacy"])
+def test_stdio_entry_point_lists_tools_in_both_eras(mode):
+    import sys
+
+    from mcp import Client, StdioServerParameters
+
+    async def run():
+        params = StdioServerParameters(command=sys.executable, args=["-m", "hvtracker_mcp"])
+        async with Client(params, mode=mode) as client:
+            return await client.list_tools()
+
+    tools = asyncio.run(run())
+    assert len(tools.tools) == 8
