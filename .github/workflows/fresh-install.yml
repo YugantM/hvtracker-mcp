@@ -1,0 +1,52 @@
+name: Fresh install
+
+# CI installs once per push, so a dependency that ships a breaking major
+# between pushes goes unnoticed. That is how mcp 2.0 (28 Jul 2026) broke every
+# `pip install hvtracker-mcp` for two months while nothing was pushed. This job
+# installs the published-style package with the newest dependencies its
+# ranges allow, every week, and opens an issue when it fails.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade ".[dev]"
+      - run: python -c "import hvtracker_mcp.server"
+      - run: python -m pytest
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      # `npm install`, not `npm ci`: resolve the newest versions the ranges
+      # allow instead of the lockfile's.
+      - run: rm package-lock.json && npm install
+      - run: npm test
+
+  alert:
+    needs: [python, node]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "Fresh install failing ($(date -u +%F))" \
+            --body "A clean install with the newest allowed dependencies failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
