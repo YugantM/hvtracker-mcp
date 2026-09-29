@@ -18,8 +18,11 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
+      # npm Trusted Publishing (OIDC): npmjs.com trusts this workflow file, so
+      # there is no NPM_TOKEN to expire (the June token lapsed after 90 days and
+      # v0.4.0's npm publish failed with E404). Needs npm >= 11.5.1; Node 22
+      # ships npm 10.
+      - run: npm install -g npm@latest
       - run: npm ci
       - run: npm test
       - run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
