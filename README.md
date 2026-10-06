@@ -34,6 +34,27 @@ package-based installation.
 - `get_leaderboard`: top tracked AI agents and MCP servers ranked by HVTrust score, optionally filtered to one category.
 - `get_agent_history`: 90-day trust-score, grade, and rank history for one tracked agent — is it improving or declining?
 
+## Check your AI dependencies in CI
+
+[HVTrust Gate](https://github.com/YugantM/hvtrust-gate) runs the same trust checks in
+GitHub Actions. With no configuration it reads your `requirements.txt`, `pyproject.toml`,
+`package.json` and MCP client configs, and comments on pull requests that change them with
+the HVTrust grade of each AI agent and MCP server you depend on.
+
+```yaml
+name: HVTrust
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  trust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: YugantM/hvtrust-gate@v1
+```
+
 ## Local Install
 
 With npm:
